@@ -1,0 +1,100 @@
+<beans:beans xmlns="http://www.springframework.org/schema/security"
+	xmlns:beans="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+           http://www.springframework.org/schema/beans/spring-beans-3.2.xsd
+           http://www.springframework.org/schema/security
+           http://www.springframework.org/schema/security/spring-security-3.2.xsd">
+
+	<http auto-config="true" access-denied-page="/auth/denied">
+
+		<intercept-url pattern="/login" access="IS_AUTHENTICATED_ANONYMOUSLY" />
+		<intercept-url pattern="/jcaptcha" access="IS_AUTHENTICATED_ANONYMOUSLY" />
+		<intercept-url pattern="/**/*.gif" access="IS_AUTHENTICATED_ANONYMOUSLY" />
+		<intercept-url pattern="/**/*.css" access="IS_AUTHENTICATED_ANONYMOUSLY" />
+		<intercept-url pattern="/**/*.js" access="IS_AUTHENTICATED_ANONYMOUSLY" /> 
+		<intercept-url pattern="/**/*.swf" access="IS_AUTHENTICATED_ANONYMOUSLY" /> 
+		
+		<intercept-url pattern="/main/admin" access="ROLE_ADMIN" />
+		<intercept-url pattern="/main/common" access="ROLE_USER" />
+		
+		<intercept-url pattern="/**" access="ROLE_USER" />
+	
+		<custom-filter ref="loginFilter" before="FORM_LOGIN_FILTER" />
+		<form-login login-page="/login" authentication-failure-url="/login?error=true" />
+		<logout logout-url="/logout" logout-success-url="/" />
+
+		<remember-me key="kevinxwq" token-validity-seconds="3600"
+			data-source-ref="dataSource" />
+	</http>
+
+	<authentication-manager alias="authenticationManager">
+		<authentication-provider ref="authenticationProvider" />
+	</authentication-manager>
+	
+	<beans:bean id="authenticationProvider"
+		class="com.mvc.service.LimitLoginAuthenticationProvider">
+		<beans:property name="passwordEncoder" ref="passwordEncoder" />
+		<beans:property name="userDetailsService" ref="customUserDetailsService" />
+		<beans:property name="userDetailsDao" ref="userDetailsDao" />
+	</beans:bean>
+	
+	<beans:bean id="passwordEncoder" 
+		class="org.springframework.security.authentication.encoding.Md5PasswordEncoder"/>
+		
+	<beans:bean id="customUserDetailsService" class="com.mvc.service.CustomUserDetailsService">
+		<beans:property name="usersByUsernameQuery"
+			value="SELECT username,password , enabled,accountnonexpired,accountnonlocked,credentialsnonexpired FROM users WHERE username=?" />
+		<beans:property name="authoritiesByUsernameQuery"
+			value="SELECT username, authority role FROM authorities WHERE username=?" />
+		<beans:property name="dataSource" ref="dataSource" />
+	</beans:bean>
+
+	<beans:bean id="userDetailsDao" class="com.mvc.dao.impl.UserDetailsDaoImpl">
+		<beans:property name="dataSource" ref="dataSource" />
+	</beans:bean>
+
+	<beans:bean id="loginFilter"
+		class="com.mvc.service.MyUsernamePasswordAuthenticationFilter">
+		<beans:property name="authenticationSuccessHandler"
+			ref="loginLogAuthenticationSuccessHandler"></beans:property>
+		<beans:property name="authenticationFailureHandler"
+			ref="simpleUrlAuthenticationFailureHandler"></beans:property>
+		<beans:property name="authenticationManager" ref="authenticationManager"></beans:property>
+	</beans:bean>
+
+	<beans:bean id="loginLogAuthenticationSuccessHandler"
+		class="org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler">
+		<beans:property name="defaultTargetUrl" value="/"></beans:property>
+	</beans:bean>
+	
+	<beans:bean id="simpleUrlAuthenticationFailureHandler"
+		class="org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler">
+		<beans:property name="defaultFailureUrl" value="/login"></beans:property>
+	</beans:bean>
+
+	<!-- 验证码生成器 -->
+	<beans:bean id="fastHashMapCaptchaStore"
+		class="com.octo.captcha.service.captchastore.FastHashMapCaptchaStore" />
+	<beans:bean id="captchaEngineEx" class="com.mvc.jcaptcha.CaptchaEngineEx" />
+	
+	<beans:bean id="captchaService" class="com.mvc.jcaptcha.CaptchaService">
+		<beans:constructor-arg type="com.octo.captcha.service.captchastore.CaptchaStore"
+			index="0">
+			<beans:ref bean="fastHashMapCaptchaStore" />
+		</beans:constructor-arg>
+		<beans:constructor-arg type="com.octo.captcha.engine.CaptchaEngine"
+			index="1">
+			<beans:ref bean="captchaEngineEx" />
+		</beans:constructor-arg>
+		<beans:constructor-arg index="2">
+			<beans:value>180</beans:value>
+		</beans:constructor-arg>
+		<beans:constructor-arg index="3">
+			<beans:value>100000</beans:value>
+		</beans:constructor-arg>
+		<beans:constructor-arg index="4">
+			<beans:value>75000</beans:value>
+		</beans:constructor-arg>
+	</beans:bean>
+	
+</beans:beans>
